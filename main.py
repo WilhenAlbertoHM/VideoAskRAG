@@ -1,27 +1,38 @@
 import streamlit as st
-import model
+from model import get_response
 
 # Run the Streamlit app
 def main():
-    st.title("VideoAskRAG: Answer your questions from the video 🎥😀")
+    st.title("VideoAskRAG: Answer Your Questions From Videos")
     st.write("This app allows you to ask questions about a YouTube video and get answers from the video itself.")
 
     video_url = st.text_input(
         label="Enter the link of your YouTube video here", 
         placeholder="URL",
-        max_chars=60,
+        max_chars=60
     )
 
-    # If the URL is valid, display the video and parse the video and ask the user to input a question
-    if video_url and "https://www.youtube.com/watch?v=" in video_url:
-        st.video(video_url)
+    # If the URL is valid, display the video and parse the video and ask the user to input a question,
+    # then display the model's response
+    if video_url:
+        if "https://www.youtube.com/watch?v=" in video_url:
+            st.video(data=video_url)
+            user_input = st.text_input(
+                label="Ask your question here", 
+                placeholder="Input"
+            )
 
-        # Ask user to input question
-        user_input = st.text_input(
-            label="Ask your question here",
-            placeholder="Input",
-        )
+            # Once the user inputs a question, display the model's response
+            if user_input:
+                st.write("Please wait while we process your question...")
+                model_response = get_response(
+                    video_url=video_url, 
+                    input_text=user_input
+                )
+                st.write(f"Answer: {model_response}")
 
+        else:
+            st.write("Please enter a valid YouTube video URL.")
 
 if __name__ == "__main__":
     main()
