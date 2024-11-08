@@ -31,7 +31,8 @@ Parameter: video_url - the URL of the video to transcribe
 Returns: None
 """
 def get_transcription(video_url: str) -> None:
-    if not os.path.exists("transcription.txt"):
+    video_id = video_url.split("v=")[1]
+    if not os.path.exists(f"{video_id}_transcription.txt"):
         try:
             youtube = YouTube(url=video_url)
             audio = youtube.streams.filter(only_audio=True).first()
@@ -41,7 +42,7 @@ def get_transcription(video_url: str) -> None:
             file = audio.download(output_path=os.getcwd())
             try:
                 transcription = whisper_model.transcribe(audio=file, fp16=False)["text"].strip()
-                with open("transcription.txt", "w") as f:
+                with open(f"{video_id}_transcription.txt", "w") as f:
                     f.write(transcription)
             except Exception as e:
                 print(f"An error occurred: {e}")
@@ -98,12 +99,10 @@ Parameter: input_text - the question to ask the model
 Returns: the response from the model
 """
 def get_response(video_url: str, input_text: str) -> str:
-    # Generate a transcription of the video
-    get_transcription(video_url)
-
     # Split the transcription into smaller documents
     try:
-        documents = split_transcription("transcription.txt")
+        video_id = video_url.split("v=")[1]
+        documents = split_transcription(f"{video_id}_transcription.txt")
     except FileNotFoundError as e:
         return str(e)
 

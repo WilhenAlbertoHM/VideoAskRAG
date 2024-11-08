@@ -1,5 +1,5 @@
 import streamlit as st
-from model import get_response
+from model import get_transcription, get_response
 
 # Run the Streamlit app
 def main():
@@ -16,7 +16,11 @@ def main():
     # then display the model's response
     if video_url:
         if "https://www.youtube.com/watch?v=" in video_url:
+            # Generate a transcription of the video
             st.video(data=video_url)
+            with st.spinner("Transcribing video, please wait before asking a question..."):
+                get_transcription(video_url)
+
             user_input = st.text_input(
                 label="Ask your question here", 
                 placeholder="Input"
@@ -24,11 +28,11 @@ def main():
 
             # Once the user inputs a question, display the model's response
             if user_input:
-                st.write("Please wait while we process your question...")
-                model_response = get_response(
-                    video_url=video_url, 
-                    input_text=user_input
-                )
+                with st.spinner("Please wait while we process your question..."):
+                    model_response = get_response(
+                        video_url=video_url, 
+                        input_text=user_input
+                    )
                 st.write(f"Answer: {model_response}")
 
         else:
