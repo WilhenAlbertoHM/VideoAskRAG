@@ -6,9 +6,8 @@ from langchain_community.vectorstores import DocArrayInMemorySearch
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_ollama.embeddings import OllamaEmbeddings
-import whisper
 from urllib.error import HTTPError
-from pytubefix import YouTube
+from youtube_transcript_api import YouTubeTranscriptApi
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -34,14 +33,10 @@ def create_transcription(video_url: str) -> None:
     video_id = video_url.split("v=")[1]
     if not os.path.exists(f"{video_id}_transcription.txt"):
         try:
-            youtube = YouTube(url=video_url)
-            audio = youtube.streams.filter(only_audio=True).first()
-            
-            # Use whisper to transcribe the audio
-            whisper_model = whisper.load_model("base")
-            file = audio.download(output_path=os.getcwd())
+            transcription_list = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
+            transcription = " ".join([i["text"] for i in transcription_list])
+
             try:
-                transcription = whisper_model.transcribe(audio=file, fp16=False)["text"].strip()
                 with open(f"{video_id}_transcription.txt", "w") as f:
                     f.write(transcription)
             except Exception as e:
@@ -51,6 +46,7 @@ def create_transcription(video_url: str) -> None:
             print(f"HTTP Error: {e.code} - {e.reason}")
         except Exception as e:
             print(f"An error occurred: {e}")
+
 
 """
 Splits the transcription into smaller Document files to feed into the model. 
@@ -109,6 +105,7 @@ def get_response(video_url: str, input_text: str) -> str:
     # Create the chain and get the response
     chain = create_chain(documents)
     
+    # Get the response from the model
     try:
         response = chain.invoke(input_text)
         return response
