@@ -30,7 +30,7 @@ Creates a transcription of the video. This is to serve as the context for the mo
 Parameter: video_url - the URL of the video to transcribe
 Returns: None
 """
-def get_transcription(video_url: str) -> None:
+def create_transcription(video_url: str) -> None:
     video_id = video_url.split("v=")[1]
     if not os.path.exists(f"{video_id}_transcription.txt"):
         try:

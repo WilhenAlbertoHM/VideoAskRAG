@@ -1,5 +1,5 @@
 import streamlit as st
-from model import get_transcription, get_response
+from model import create_transcription, get_response
 
 # Run the Streamlit app
 def main():
@@ -19,7 +19,7 @@ def main():
             # Generate a transcription of the video
             st.video(data=video_url)
             with st.spinner("Transcribing video, please wait before asking a question..."):
-                get_transcription(video_url)
+                create_transcription(video_url)
 
             user_input = st.text_input(
                 label="Ask your question here", 
