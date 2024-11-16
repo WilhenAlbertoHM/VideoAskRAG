@@ -33,7 +33,7 @@ def create_transcription(video_url: str) -> None:
     video_id = video_url.split("v=")[1]
     if not os.path.exists(f"{video_id}_transcription.txt"):
         try:
-            transcription_list = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
+            transcription_list = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "es", "fr", "de", "it"])
             transcription = " ".join([i["text"] for i in transcription_list])
 
             try:
