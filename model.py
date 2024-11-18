@@ -2,7 +2,7 @@ import os
 from langchain_ollama import OllamaLLM
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
-from langchain_community.vectorstores import DocArrayInMemorySearch
+from langchain_pinecone import PineconeVectorStore
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_ollama.embeddings import OllamaEmbeddings
@@ -14,8 +14,11 @@ load_dotenv()
     
 model = OllamaLLM(model=os.getenv("MODEL"))
 template = """
-Answer the question based on the context below. 
-If you can't answer the question, reply, "I don't know".
+You are a friendly and knowledgeable AI assistant that answers questions about a video based on the provided transcript. 
+Refer to the 'context' or 'transcript' as 'video' to avoid confusion. 
+Respond with enthusiasm, clarity, and conciseness, keeping your answers directly relevant to the question. 
+If the video does not contain the answer, kindly say so. 
+Match the language of your response to the language of the question.
 
 Context: {context}
 
@@ -61,7 +64,7 @@ def split_transcription(transcription_path: str) -> list:
     
     loader = TextLoader(file_path=transcription_path)
     text_documents = loader.load()
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
     documents = splitter.split_documents(text_documents)
     return documents
 
@@ -74,7 +77,8 @@ Returns: the chain
 def create_chain(documents: list) -> RunnableParallel:
     # Load the vector store with the documents
     embeddings = OllamaEmbeddings(model=os.getenv("MODEL"))
-    vector_store = DocArrayInMemorySearch.from_documents(
+    vector_store = PineconeVectorStore.from_documents(
+        index_name=os.getenv("PINECONE_INDEX_NAME"),
         documents=documents, 
         embedding=embeddings
     )
