@@ -33,22 +33,28 @@ Parameter: video_url - the URL of the video to transcribe
 Returns: None
 """
 def create_transcription(video_url: str) -> None:
-    video_id = video_url.split("v=")[1]
-    if not os.path.exists(f"{video_id}_transcription.txt"):
-        try:
-            transcription_list = YouTubeTranscriptApi.get_transcript(video_id, languages=["en", "es", "fr", "de", "it"])
-            transcription = " ".join([i["text"] for i in transcription_list])
-
-            try:
-                with open(f"{video_id}_transcription.txt", "w") as f:
-                    f.write(transcription)
-            except Exception as e:
-                print(f"An error occurred: {e}")
+    try:
+        # Extract the video ID from the URL
+        video_id = video_url.split("v=")[1]
+        transcription_file = f"{video_id}_transcription.txt"
         
-        except HTTPError as e:
-            print(f"HTTP Error: {e.code} - {e.reason}")
-        except Exception as e:
-            print(f"An error occurred: {e}")
+        # If transcription file does not exist, create it and write it to a .txt file
+        if not os.path.exists(transcription_file):
+            transcription_list = YouTubeTranscriptApi.get_transcript(
+                video_id=video_id, 
+                languages=["en", "es", "fr", "de", "it"]
+            )
+            transcription = " ".join([item["text"] for item in transcription_list])
+
+            with open(transcription_file, "w") as f:
+                f.write(transcription)
+            
+    except HTTPError as e:
+        print(f"HTTP Error: {e.code} - {e.reason}")
+    except FileNotFoundError as e:
+        print(f"File not found: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 """
@@ -99,19 +105,17 @@ Parameter: input_text - the question to ask the model
 Returns: the response from the model
 """
 def get_response(video_url: str, input_text: str) -> str:
-    # Split the transcription into smaller documents
     try:
+        # Split the transcription into smaller documents
         video_id = video_url.split("v=")[1]
         documents = split_transcription(f"{video_id}_transcription.txt")
-    except FileNotFoundError as e:
-        return str(e)
 
-    # Create the chain and get the response
-    chain = create_chain(documents)
-    
-    # Get the response from the model
-    try:
+        # Create the chain and return the response
+        chain = create_chain(documents)
         response = chain.invoke(input_text)
         return response
+    
+    except FileNotFoundError as e:
+        return str(e)
     except Exception as e:
         return str(e)
