@@ -1,7 +1,7 @@
 langchain==0.3.23
 langchain_community==0.3.21
 langchain_core==0.3.51
-langchain-google-genai==0.0.11
+langchain_google_genai==2.1.2
 langchain_pinecone==0.2.5
 python-dotenv==1.1.0
 streamlit==1.44.1
