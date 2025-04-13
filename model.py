@@ -1,18 +1,23 @@
 import os
-from langchain_ollama import OllamaLLM
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain_pinecone import PineconeVectorStore
 from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_ollama.embeddings import OllamaEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from urllib.error import HTTPError
 from youtube_transcript_api import YouTubeTranscriptApi
 from dotenv import load_dotenv
 
 load_dotenv()
-    
-model = OllamaLLM(model=os.getenv("MODEL"))
+
+# Initialize Gemini model
+model = ChatGoogleGenerativeAI(
+    model="gemini-2.0-flash",
+    google_api_key=os.getenv("GEMINI_API_KEY")
+)
+
 template = """
 You are a friendly and knowledgeable AI assistant that answers questions about a video based on the provided transcript. 
 Refer to the 'context' or 'transcript' as 'video' to avoid confusion, as the user only sees the video and not a 'video transcript'. 
@@ -81,8 +86,11 @@ Parameter: documents - the list of Document objects to feed into the model
 Returns: the chain
 """
 def create_chain(documents: list) -> RunnableParallel:
-    # Load the vector store with the documents
-    embeddings = OllamaEmbeddings(model=os.getenv("MODEL"))
+    # Load the vector store with documents using Gemini embeddings
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/embedding-001",
+        google_api_key=os.getenv("GEMINI_API_KEY")
+    )
     vector_store = PineconeVectorStore.from_documents(
         index_name=os.getenv("PINECONE_INDEX_NAME"),
         documents=documents, 

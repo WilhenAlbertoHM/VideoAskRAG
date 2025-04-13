@@ -33,7 +33,7 @@ def main():
                         video_url=video_url, 
                         input_text=user_input
                     )
-                st.write(f"Answer: {model_response}")
+                st.write(f"Answer: {model_response.content}")
 
         else:
             st.write("Please enter a valid YouTube video URL.")
