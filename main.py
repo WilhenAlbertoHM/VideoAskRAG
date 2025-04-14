@@ -16,10 +16,14 @@ def main():
     # then display the model's response
     if video_url:
         if "https://www.youtube.com/watch?v=" in video_url:
-            # Generate a transcription of the video
             st.video(data=video_url)
-            with st.spinner("Transcribing video, please wait before asking a question..."):
-                create_transcription(video_url)
+            with st.spinner("Processing video transcript..."):
+                try:
+                    create_transcription(video_url)
+                    st.success("Transcript processed successfully!")
+                except Exception as e:
+                    st.error(f"Error processing transcript: {str(e)}")
+                    return
 
             user_input = st.text_input(
                 label="Ask your question here", 

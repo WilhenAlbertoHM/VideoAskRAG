@@ -1,9 +1,11 @@
 import os
+import pinecone
+from langchain.document_loaders import TextLoader
+from langchain_core.documents import Document
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from langchain_pinecone import PineconeVectorStore
-from langchain_community.document_loaders import TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from urllib.error import HTTPError
@@ -37,29 +39,53 @@ Creates a transcription of the video. This is to serve as the context for the mo
 Parameter: video_url - the URL of the video to transcribe
 Returns: None
 """
-def create_transcription(video_url: str) -> None:
+def create_transcription(video_url: str) -> str:
     try:
         # Extract the video ID from the URL
         video_id = video_url.split("v=")[1]
-        transcription_file = f"{video_id}_transcription.txt"
         
-        # If transcription file does not exist, create it and write it to a .txt file
-        if not os.path.exists(transcription_file):
-            transcription_list = YouTubeTranscriptApi.get_transcript(
-                video_id=video_id, 
-                languages=["en", "es", "fr", "de", "it"]
-            )
-            transcription = " ".join([item["text"] for item in transcription_list])
-
-            with open(transcription_file, "w") as f:
-                f.write(transcription)
+        # Get the transcript
+        transcription_list = YouTubeTranscriptApi.get_transcript(
+            video_id=video_id, 
+            languages=["en", "es", "fr", "de", "it"]
+        )
+        transcription = " ".join([item["text"] for item in transcription_list])
+        
+        # Split and store in Pinecone
+        splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
+        texts = splitter.split_text(transcription)
+        
+        # Create documents with metadata
+        documents = [
+            Document(
+                page_content=chunk,
+                metadata={
+                    "video_id": video_id,
+                    "chunk_id": i,
+                    "source": video_url
+                }
+            ) for i, chunk in enumerate(texts)
+        ]
+        
+        # Store in Pinecone
+        embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001",
+            google_api_key=os.getenv("GEMINI_API_KEY"),
+            task_type="retrieval_query"
+        )
+        
+        vector_store = PineconeVectorStore.from_documents(
+            documents=documents,
+            embedding=embeddings,
+            index_name=os.getenv("PINECONE_INDEX_NAME")
+        )
+        
+        return video_id
             
     except HTTPError as e:
-        print(f"HTTP Error: {e.code} - {e.reason}")
-    except FileNotFoundError as e:
-        print(f"File not found: {e}")
+        raise Exception(f"HTTP Error: {e.code} - {e.reason}")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        raise Exception(f"An error occurred: {e}")
 
 
 """
@@ -114,16 +140,38 @@ Returns: the response from the model
 """
 def get_response(video_url: str, input_text: str) -> str:
     try:
-        # Split the transcription into smaller documents
         video_id = video_url.split("v=")[1]
-        documents = split_transcription(f"{video_id}_transcription.txt")
-
-        # Create the chain and return the response
-        chain = create_chain(documents)
+        
+        # Initialize embeddings
+        embeddings = GoogleGenerativeAIEmbeddings(
+            model="models/embedding-001",
+            google_api_key=os.getenv("GEMINI_API_KEY"),
+            task_type="retrieval_query"
+        )
+        
+        # Initialize Pinecone vector store
+        vector_store = PineconeVectorStore(
+            index_name=os.getenv("PINECONE_INDEX_NAME"),
+            embedding=embeddings
+        )
+        
+        # Create retriever with metadata filter for specific video
+        retriever = vector_store.as_retriever(
+            search_kwargs={
+                "filter": {"video_id": video_id},
+                "k": 5  # Number of relevant chunks to retrieve
+            }
+        )
+        
+        # Create the chain
+        setup = RunnableParallel(
+            context=retriever,
+            question=RunnablePassthrough()
+        )
+        
+        chain = setup | prompt | model
         response = chain.invoke(input_text)
         return response
     
-    except FileNotFoundError as e:
-        return str(e)
     except Exception as e:
         return str(e)
